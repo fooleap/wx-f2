@@ -17,6 +17,10 @@ Component({
     onInit: {
       type: 'Function',
       value: () => {}
+    },
+    opts: {
+      type: Object,
+      value: {}
     }
   },
 
@@ -28,13 +32,21 @@ Component({
   },
 
   ready() {
-    const query = wx.createSelectorQuery().in(this);
-    query.select('.f2-canvas')
-      .fields({
+    if (!this.data.opts.lazyLoad) {
+      this.init();
+    }
+  },
+
+  /**
+   * 组件的方法列表
+   */
+  methods: {
+    init (callback) {
+      const query = wx.createSelectorQuery().in(this);
+      query.select('.f2-canvas').fields({
         node: true,
         size: true
-      })
-      .exec(res => {
+      }).exec(res => {
         const { node, width, height } = res[0];
         const context = node.getContext('2d');
         const pixelRatio = wx.getSystemInfoSync().pixelRatio;
@@ -42,19 +54,24 @@ Component({
         node.width = width * pixelRatio;
         node.height = height * pixelRatio;
 
+        F2.Global.fontFamily = 'sans-serif';
         const config = { context, width, height, pixelRatio };
-        const chart = this.data.onInit(F2, config);
-        if (chart) {
-          this.chart = chart;
-          this.canvasEl = chart.get('el');
+        if (!this.chart) {
+          if (this.data.opts.padding) {
+            config.padding = this.data.opts.padding
+          }
+          this.chart = new F2.Chart(config)
+        } else {
+          this.chart.clear();
         }
+        if (typeof callback === 'function') {
+          callback(this.chart);
+        } else if (this.data.onInit) {
+          this.data.onInit(this.chart);
+        }
+        this.canvasEl = this.chart.get('el');
       });
-  },
-
-  /**
-   * 组件的方法列表
-   */
-  methods: {
+    },
     touchStart(e) {
       const canvasEl = this.canvasEl;
       if (!canvasEl) {
